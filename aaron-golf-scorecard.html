@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Golf Scorecard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-dark: #1b5e20;
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-light: #666666;
+            --border: #e0e0e0;
+            --blue-tee: #1976d2;
+            --white-tee: #757575;
+            --red-tee: #d32f2f;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        /* Global App Header */
+        .app-header {
+            text-align: center;
+            padding: 5px 0 10px 0;
+        }
+        .app-header h1 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 26px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            box-sizing: border-box;
+        }
+        
+        /* Screens */
+        .screen { display: none; flex-direction: column; gap: 15px; }
+        .screen.active { display: flex; }
+
+        /* Buttons & Inputs */
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header-actions h2 { margin: 0; color: var(--text-main); font-size: 18px; }
+        
+        .btn-action {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary);
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn-action:active { transform: scale(0.95); }
+        .btn-action.danger { background-color: #d32f2f; }
+        .btn-action.outline { background-color: white; color: var(--primary); border: 1px solid var(--primary); box-shadow: none; }
+        
+        .full-input { 
+            width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--border); 
+            border-radius: 8px; background-color: #fafafa; color: var(--text-main); 
+            margin-bottom: 15px; box-sizing: border-box;
+        }
+        select:focus, input:focus { outline: none; border-color: var(--primary); }
+
+        .btn-full { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; background-color: var(--primary); color: white; cursor: pointer; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .btn-full:active { transform: scale(0.98); }
+        .btn-full.secondary { background-color: #e8f5e9; color: var(--primary); box-shadow: none; }
+
+        /* Setup Screen Elements */
+        .setup-player-row {
+            display: flex; align-items: center; gap: 8px; background: #fafafa; 
+            border: 1px solid var(--border); padding: 10px; border-radius: 12px; margin-bottom: 10px;
+        }
+        .setup-player-row input { flex: 2; padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 16px; width: 100%; box-sizing: border-box; }
+        .setup-player-row select { flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 14px; background: white; }
+        .btn-remove { background: #ffebee; color: #d32f2f; border: none; border-radius: 6px; width: 35px; height: 35px; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+        /* Scorecard Screen Elements */
+        .hole-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .hole-title { font-size: 28px; font-weight: 800; color: var(--primary); margin: 0; }
+        .hole-stats { display: flex; justify-content: center; margin-bottom: 20px; }
+        
+        .stat-box { background: #f8f9fa; padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+        .stat-box-label { font-size: 14px; color: var(--text-light); margin-bottom: 5px; }
+        .stat-box-content { display: flex; align-items: center; gap: 15px; }
+        .stat-box-content strong { color: var(--text-main); font-size: 24px; display: block; margin: 0; line-height: 1; }
+        
+        .btn-par-adj { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background-color: white; color: var(--primary); font-size: 18px; font-weight: bold; cursor: pointer; display: none; align-items: center; justify-content: center; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .btn-par-adj:active { transform: scale(0.9); }
+
+        .players-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px; }
+        .score-row { display: flex; justify-content: space-between; align-items: center; background: #fafafa; border: 1px solid var(--border); padding: 12px 15px; border-radius: 12px; }
+        .score-info { display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+        .score-name { font-size: 18px; font-weight: bold; color: var(--text-main); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .player-yardage { font-size: 12px; font-weight: bold; color: var(--text-light); display: inline-flex; align-items: center; padding-left: 6px; }
+        .yardage-blue { border-left: 4px solid var(--blue-tee); }
+        .yardage-white { border-left: 4px solid var(--white-tee); }
+        .yardage-red { border-left: 4px solid var(--red-tee); }
+
+        .score-controls { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+        .btn-score { width: 45px; height: 45px; border-radius: 50%; border: none; background-color: white; color: var(--primary); font-size: 24px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
+        .btn-score:active { transform: scale(0.95); }
+        .score-display { font-size: 32px; font-weight: 800; width: 40px; text-align: center; }
+
+        .nav-buttons { display: flex; justify-content: space-between; gap: 10px; }
+        .btn-nav { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; background-color: var(--primary); color: white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-nav:disabled { background-color: #a5d6a7; cursor: not-allowed; box-shadow: none; }
+
+        /* Tables (Leaderboard & Stats) */
+        .dashboard-header { font-size: 18px; font-weight: bold; margin-top: 0; margin-bottom: 10px; text-align: center; color: var(--primary); }
+        
+        /* View Toggle */
+        .view-toggle { display: flex; background: #e0e0e0; border-radius: 8px; padding: 4px; margin-bottom: 15px; gap: 4px;}
+        .view-toggle button { flex: 1; border: none; background: none; padding: 8px 4px; border-radius: 6px; font-size: 12px; font-weight: bold; color: var(--text-light); cursor: pointer; transition: 0.2s ease; white-space: nowrap; }
+        .view-toggle button.active { background: white; color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; font-size: 12px; color: var(--text-light); text-transform: uppercase; padding-bottom: 8px; border-bottom: 2px solid var(--bg); }
+        .data-table td { padding: 10px 0; font-size: 16px; font-weight: bold; border-bottom: 1px solid var(--bg); }
+        .data-table .center { text-align: center; }
+        
+        .clickable-row { cursor: pointer; transition: background-color 0.1s ease; }
+        .clickable-row:active { background-color: #e8f5e9; }
+        .chevron-cell { width: 20px; color: #bbbbbb !important; font-size: 20px !important; text-align: right; padding-right: 5px !important; }
+        
+        /* Full Scrollable Scorecard Magic */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid var(--border); background: white; }
+        table.full-scorecard { width: 100%; border-collapse: collapse; font-size: 14px; white-space: nowrap; }
+        .full-scorecard th, .full-scorecard td { padding: 10px 8px; text-align: center; border-bottom: 1px solid var(--border); border-right: 1px solid #eeeeee; }
+        .full-scorecard th:last-child, .full-scorecard td:last-child { border-right: none; }
+        .full-scorecard th { background-color: #f8f9fa; color: var(--text-light); font-size: 12px; text-transform: uppercase; }
+        .full-scorecard .par-row td { background-color: #f8f9fa; font-size: 12px; color: var(--text-light); font-weight: bold; }
+        .full-scorecard .empty-cell { color: #ccc; font-weight: normal; }
+        
+        /* Shape Formatting for Scores (Circles & Squares) */
+        .score-shape { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; box-sizing: border-box; font-weight: bold; }
+        .score-under-par { border: 2px solid var(--blue-tee); color: var(--blue-tee); border-radius: 50%; }
+        .score-over-par { border: 2px solid var(--red-tee); color: var(--red-tee); }
+        
+        /* Sticky First Column */
+        .full-scorecard th:first-child, .full-scorecard td:first-child { position: sticky; left: 0; background-color: white; z-index: 2; text-align: left; font-weight: bold; box-shadow: 2px 0 5px rgba(0,0,0,0.05); max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+        .full-scorecard th:first-child { background-color: #f8f9fa; z-index: 3; }
+        .full-scorecard .par-row td:first-child { background-color: #f8f9fa; }
+
+        .to-par-under { color: var(--blue-tee); }
+        .to-par-over { color: var(--red-tee); }
+        .to-par-even { color: var(--primary); }
+
+        /* Chart Container */
+        .chart-container { position: relative; width: 100%; height: 300px; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px; box-sizing: border-box; }
+
+        /* History & Detail Screens */
+        .history-card { background: #ffffff; border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e0e0e0; padding-bottom: 10px; margin-bottom: 15px; }
+        .history-header strong { font-size: 16px; color: var(--text-main); }
+        .history-header span { font-size: 12px; color: var(--text-light); }
+        .history-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; }
+        .history-actions .btn-action { flex: 1; text-align: center; }
+        .empty-state { text-align: center; padding: 30px 10px; color: var(--text-light); font-style: italic; }
+        
+        /* Detail Summary Header */
+        .detail-summary-bar { display: flex; justify-content: space-around; background: #fafafa; border: 1px solid var(--border); border-radius: 8px; padding: 12px 10px; margin-bottom: 15px; }
+        .detail-summary-item { text-align: center; }
+        .detail-summary-item span { display: block; font-size: 11px; font-weight: bold; color: var(--text-light); text-transform: uppercase; margin-bottom: 4px; }
+        .detail-summary-item strong { font-size: 18px; color: var(--text-main); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="app-header">
+        <h1>⛳ Golf Scorecard</h1>
+    </div>
+
+    <div id="screen-setup" class="screen">
+        <div class="card">
+            <div class="header-actions">
+                <h2>Group Setup</h2>
+                <button class="btn-action danger" onclick="resetRound()">🗑️ Clear Round</button>
+            </div>
+            
+            <label style="font-size: 14px; font-weight: bold; color: var(--text-light); display: block; margin-bottom: 5px;">Select Course</label>
+            <select id="course-dropdown" class="full-input" style="margin-bottom: 10px;" onchange="handleCourseChange(event)"></select>
+            
+            <input type="text" id="custom-course-name" class="full-input" placeholder="Enter Course Name" onchange="updateCustomCourseName(this.value)" style="display: none;">
+
+            <label style="font-size: 14px; font-weight: bold; color: var(--text-light); display: block; margin-bottom: 10px; margin-top: 10px;">Players</label>
+            
+            <datalist id="historical-players"></datalist>
+
+            <div id="setup-players-container">
+                </div>
+
+            <button class="btn-full secondary" onclick="addPlayer()">+ Add Player</button>
+            <button class="btn-full" onclick="showScorecard()" style="margin-top: 25px;">Go to Scorecard →</button>
+            
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-full secondary" onclick="showHistory()" style="margin-top: 0; border: 1px solid var(--primary); flex: 1;">📜 History</button>
+                <button class="btn-full secondary" onclick="showPlayerStats()" style="margin-top: 0; border: 1px solid var(--primary); flex: 1;">📊 Stats</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-scorecard" class="screen active">
+        <div class="card" style="padding: 15px 20px;">
+            <div class="header-actions" style="margin: 0;">
+                <h2 id="display-course-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">Course Name</h2>
+                <button class="btn-action" onclick="showSetup()">⚙️ Setup</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="hole-header">
+                <h1 class="hole-title" id="display-hole-num">Hole 1</h1>
+                <select id="hole-jumper" style="width: auto; margin: 0; padding: 8px; border-radius: 8px; border: 1px solid var(--border); font-size: 16px;" onchange="jumpToHole(event)"></select>
+            </div>
+
+            <div class="hole-stats">
+                <div class="stat-box">
+                    <span class="stat-box-label">Par</span>
+                    <div class="stat-box-content">
+                        <button id="btn-par-minus" class="btn-par-adj" onclick="adjustPar(-1)">-</button>
+                        <strong id="display-par">4</strong>
+                        <button id="btn-par-plus" class="btn-par-adj" onclick="adjustPar(1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="players-container" id="score-players-container"></div>
+
+            <div class="nav-buttons">
+                <button id="btn-prev" class="btn-nav" onclick="changeHole(-1)">← Prev</button>
+                <button id="btn-next" class="btn-nav" onclick="changeHole(1)">Next →</button>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 20px 10px;">
+            <h3 class="dashboard-header">Leaderboard</h3>
+            
+            <div class="view-toggle">
+                <button id="btn-view-summary" class="active" onclick="toggleBoardView('summary')">Summary</button>
+                <button id="btn-view-full" onclick="toggleBoardView('full')">Full Grid</button>
+                <button id="btn-view-chart" onclick="toggleBoardView('chart')">📈 Mountain</button>
+            </div>
+
+            <table id="board-summary" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th class="center">Thru</th>
+                        <th class="center">Total</th>
+                        <th class="center">To Par</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body-summary"></tbody>
+            </table>
+            
+            <div id="board-full" class="table-responsive" style="display: none;">
+                <table class="full-scorecard">
+                    <thead id="leaderboard-head-full"></thead>
+                    <tbody id="leaderboard-body-full"></tbody>
+                </table>
+            </div>
+
+            <div id="board-chart" class="chart-container" style="display: none;">
+                <canvas id="activeRoundChart"></canvas>
+            </div>
+            
+            <button class="btn-full" onclick="saveRound()" style="margin-top: 15px; background-color: #0277bd;">💾 Save Round</button>
+        </div>
+    </div>
+
+    <div id="screen-history" class="screen">
+        <div class="card">
+            <div class="header-actions">
+                <h2>Saved Rounds</h2>
+                <button class="btn-action outline" onclick="showSetup()">Back</button>
+            </div>
+            <div id="history-container">
+                </div>
+        </div>
+    </div>
+
+    <div id="screen-player-stats" class="screen">
+        <div class="card">
+            <div class="header-actions">
+                <h2>Player Stats</h2>
+                <button class="btn-action outline" onclick="showSetup()">Back</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-light); text-align: center; margin-top: 0;">Tap a player below to view their scorecards.</p>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Player</th>
+                        <th class="center">Rounds</th>
+                        <th class="center" title="Estimated 18-Hole Average">Avg 18</th>
+                        <th class="center">To Par</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="player-stats-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="screen-player-detail" class="screen">
+        <div class="card">
+            <div class="header-actions">
+                <h2 id="detail-player-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75%;">Player's Rounds</h2>
+                <button class="btn-action outline" onclick="showPlayerStats()">Back</button>
+            </div>
+            
+            <div class="detail-summary-bar">
+                <div class="detail-summary-item">
+                    <span>Rounds</span>
+                    <strong id="detail-sum-rounds">0</strong>
+                </div>
+                <div class="detail-summary-item">
+                    <span>Avg 18</span>
+                    <strong id="detail-sum-avg">0.0</strong>
+                </div>
+                <div class="detail-summary-item">
+                    <span>To Par</span>
+                    <strong id="detail-sum-topar">E</strong>
+                </div>
+            </div>
+
+            <div id="player-detail-container">
+                </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- COURSE DATABASE ---
+    const courseDatabase = {
+        "custom": { name: "-- Custom / Manual Entry --", pars: [4,4,4,4,4,4,4,4,4, 4,4,4,4,4,4,4,4,4], tees: { blue: [0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0], white: [0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0], red: [0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0] }},
+        "lake_chabot": { name: "Lake Chabot Golf Course", pars: [4,3,5,5,4,4,3,5,3, 4,4,3,4,4,4,4,3,6], tees: { blue: [365,152,475,515,356,290,135,468,175, 335,355,145,340,320,380,315,165,650], white: [345,140,460,490,340,270,120,440,160, 310,340,130,320,300,360,300,150,610], red: [320,120,420,460,310,250,105,410,140, 290,310,115,290,270,330,270,130,560] }},
+        "metro_links": { name: "Metropolitan Golf Links", pars: [4,4,5,4,3,5,3,4,4, 5,4,3,4,4,3,4,5,4], tees: { blue: [382,410,512,390,165,520,155,420,395, 535,405,170,385,375,145,415,505,430], white: [360,385,490,370,150,500,140,395,370, 510,380,155,360,350,130,390,480,405], red: [330,350,450,340,130,460,115,360,340, 470,350,135,330,320,110,360,440,370] }},
+        "corica_south": { name: "Corica Park (South)", pars: [5,4,4,4,3,5,3,4,4, 4,3,4,4,4,5,3,5,4], tees: { blue: [505,385,410,395,160,525,175,420,380, 405,150,390,375,415,510,185,530,425], white: [480,360,390,370,145,500,160,395,360, 380,135,370,350,390,480,165,500,400], red: [440,330,360,340,120,460,135,360,330, 350,115,340,320,360,440,140,460,360] }},
+        "corica_north": { name: "Corica Park (North)", pars: [4,5,4,3,4,5,3,4,4, 4,3,4,4,5,3,4,4,4], tees: { blue: [362,492,381,145,394,498,162,401,365, 388,155,372,390,502,175,385,410,400], white: [340,470,360,130,370,475,145,380,340, 365,140,350,370,480,155,360,385,375], red: [310,430,330,110,340,440,125,350,310, 330,120,320,340,440,135,330,350,340] }},
+        "tilden_park": { name: "Tilden Park", pars: [4,4,4,3,4,4,3,5,4, 4,3,4,5,4,4,3,4,4], tees: { blue: [375,390,415,155,385,400,165,510,395, 420,170,380,505,410,395,145,405,425], white: [355,370,390,140,365,380,150,485,375, 400,155,360,480,390,375,130,385,400], red: [325,340,360,120,335,350,130,450,345, 370,135,330,440,360,345,110,355,370] }},
+        "redwood_canyon": { name: "Redwood Canyon", pars: [4,4,3,5,3,4,3,4,5, 4,4,5,3,4,4,3,4,5], tees: { blue: [345,360,150,480,140,370,165,390,495, 385,375,505,155,365,380,170,350,490], white: [325,340,135,460,125,350,150,370,470, 365,355,480,140,345,360,155,330,465], red: [295,310,115,420,105,320,130,340,430, 335,325,440,120,315,330,135,300,425] }},
+        "monarch_bay": { name: "Monarch Bay (Tony Lema)", pars: [4,4,4,3,5,4,3,4,4, 3,4,5,4,4,4,5,3,4], tees: { blue: [411,405,439,193,513,406,235,379,431, 149,389,555,493,311,424,593,208,403], white: [369,374,376,160,482,365,180,332,389, 129,342,507,450,278,358,519,178,273], red: [288,298,330,131,401,337,141,302,349, 100,318,380,389,251,320,455,107,243] }}
+    };
+
+    let currentHole = 1;
+    let players = [];
+    let savedPlayerNames = [];
+    let currentDetailPlayer = null; 
+
+    // --- CHART GLOBALS ---
+    let activeChartInstance = null;
+    let historyChartInstances = []; 
+    const chartColors = ['#1976d2', '#d32f2f', '#2e7d32', '#f57c00'];
+
+    // --- DOM ELEMENTS ---
+    const screenSetup = document.getElementById('screen-setup');
+    const screenScorecard = document.getElementById('screen-scorecard');
+    const screenHistory = document.getElementById('screen-history');
+    const screenPlayerStats = document.getElementById('screen-player-stats');
+    const screenPlayerDetail = document.getElementById('screen-player-detail');
+    
+    const courseDropdown = document.getElementById('course-dropdown');
+    const customCourseNameInput = document.getElementById('custom-course-name');
+    const setupPlayersContainer = document.getElementById('setup-players-container');
+    const scorePlayersContainer = document.getElementById('score-players-container');
+    
+    const boardSummary = document.getElementById('board-summary');
+    const boardFull = document.getElementById('board-full');
+    const boardChart = document.getElementById('board-chart');
+    const btnViewSummary = document.getElementById('btn-view-summary');
+    const btnViewFull = document.getElementById('btn-view-full');
+    const btnViewChart = document.getElementById('btn-view-chart');
+    
+    const leaderboardSummaryBody = document.getElementById('leaderboard-body-summary');
+    const leaderboardFullHead = document.getElementById('leaderboard-head-full');
+    const leaderboardFullBody = document.getElementById('leaderboard-body-full');
+    
+    const holeJumper = document.getElementById('hole-jumper');
+    const historyContainer = document.getElementById('history-container');
+    const statsBody = document.getElementById('player-stats-body');
+    const datalistPlayers = document.getElementById('historical-players');
+    
+    const detailPlayerNameTitle = document.getElementById('detail-player-name');
+    const playerDetailContainer = document.getElementById('player-detail-container');
+    
+    const btnParMinus = document.getElementById('btn-par-minus');
+    const btnParPlus = document.getElementById('btn-par-plus');
+
+    // --- INITIALIZATION ---
+    function init() {
+        const savedCourseId = localStorage.getItem('selectedCourseId') || 'custom';
+        const storedHole = localStorage.getItem('currentHole');
+        currentHole = storedHole ? parseInt(storedHole, 10) : 1;
+        
+        const savedCustomName = localStorage.getItem('custom-course-name');
+        if (savedCustomName) {
+            courseDatabase['custom'].name = savedCustomName;
+            customCourseNameInput.value = savedCustomName;
+        } else { courseDatabase['custom'].name = "Custom Course"; }
+
+        const savedCustomPars = localStorage.getItem('custom-course-pars');
+        if (savedCustomPars) { courseDatabase['custom'].pars = JSON.parse(savedCustomPars); }
+
+        const historyData = localStorage.getItem('golf-player-history');
+        if (historyData) savedPlayerNames = JSON.parse(historyData);
+        renderPlayerDatalist();
+
+        const savedPlayers = localStorage.getItem('golf-players');
+        if (savedPlayers) {
+            players = JSON.parse(savedPlayers);
+            players.forEach(p => { if(!p.tee) p.tee = 'white'; });
+        } else {
+            players = [{ id: 'p1', name: '', tee: 'white' }];
+            savePlayers();
+        }
+
+        courseDropdown.innerHTML = '';
+        for (const [id, course] of Object.entries(courseDatabase)) {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = id === 'custom' ? "-- Custom / Manual Entry --" : course.name;
+            if (id === savedCourseId) option.selected = true;
+            courseDropdown.appendChild(option);
+        }
+        toggleCustomNameInput(savedCourseId);
+
+        holeJumper.innerHTML = '';
+        for (let i = 1; i <= 18; i++) {
+            const option = document.createElement('option');
+            option.value = i; option.textContent = `Hole ${i}`;
+            holeJumper.appendChild(option);
+        }
+
+        let hasScores = false;
+        for(let i=1; i<=18; i++) {
+            if (localStorage.getItem(`${players[0].id}-hole-${i}-score`)) hasScores = true;
+        }
+        
+        if (hasScores || currentHole > 1) { showScorecard(); } 
+        else { showSetup(); }
+    }
+
+    // --- NAVIGATION ---
+    function hideAllScreens() {
+        screenSetup.classList.remove('active');
+        screenScorecard.classList.remove('active');
+        screenHistory.classList.remove('active');
+        screenPlayerStats.classList.remove('active');
+        screenPlayerDetail.classList.remove('active');
+    }
+
+    function showSetup() {
+        hideAllScreens();
+        screenSetup.classList.add('active');
+        renderSetupPlayers();
+    }
+
+    function showScorecard() {
+        hideAllScreens();
+        screenScorecard.classList.add('active');
+        loadHole(currentHole);
+    }
+
+    function showHistory() {
+        hideAllScreens();
+        screenHistory.classList.add('active');
+        renderHistory();
+    }
+
+    function showPlayerStats() {
+        hideAllScreens();
+        currentDetailPlayer = null;
+        screenPlayerStats.classList.add('active');
+        renderPlayerStats();
+    }
+
+    function showPlayerDetail(playerName) {
+        hideAllScreens();
+        currentDetailPlayer = playerName;
+        screenPlayerDetail.classList.add('active');
+        detailPlayerNameTitle.textContent = playerName + "'s Rounds";
+        renderPlayerDetailHistory(playerName);
+    }
+
+    function toggleBoardView(view) {
+        btnViewSummary.classList.remove('active');
+        btnViewFull.classList.remove('active');
+        btnViewChart.classList.remove('active');
+        boardSummary.style.display = 'none';
+        boardFull.style.display = 'none';
+        boardChart.style.display = 'none';
+
+        if(view === 'summary') {
+            btnViewSummary.classList.add('active');
+            boardSummary.style.display = 'table';
+        } else if(view === 'full') {
+            btnViewFull.classList.add('active');
+            boardFull.style.display = 'block';
+        } else if(view === 'chart') {
+            btnViewChart.classList.add('active');
+            boardChart.style.display = 'block';
+        }
+    }
+
+    function toggleRoundView(id, view, prefix) {
+        const btnSum = document.getElementById(`btn-${prefix}-sum-${id}`);
+        const btnFull = document.getElementById(`btn-${prefix}-full-${id}`);
+        const btnChart = document.getElementById(`btn-${prefix}-chart-${id}`);
+        
+        const contSum = document.getElementById(`${prefix}-sum-container-${id}`);
+        const contFull = document.getElementById(`${prefix}-full-container-${id}`);
+        const contChart = document.getElementById(`${prefix}-chart-container-${id}`);
+
+        btnSum.classList.remove('active');
+        btnFull.classList.remove('active');
+        btnChart.classList.remove('active');
+        
+        contSum.style.display = 'none';
+        contFull.style.display = 'none';
+        contChart.style.display = 'none';
+
+        if(view === 'summary') {
+            btnSum.classList.add('active');
+            contSum.style.display = 'block';
+        } else if(view === 'full') {
+            btnFull.classList.add('active');
+            contFull.style.display = 'block';
+        } else if(view === 'chart') {
+            btnChart.classList.add('active');
+            contChart.style.display = 'block';
+        }
+    }
+
+    function clearHistoryCharts() {
+        historyChartInstances.forEach(c => c.destroy());
+        historyChartInstances = [];
+    }
+
+    // --- SETUP LOGIC ---
+    function savePlayers() { localStorage.setItem('golf-players', JSON.stringify(players)); }
+
+    function handleCourseChange(e) {
+        const courseId = e.target.value;
+        localStorage.setItem('selectedCourseId', courseId);
+        toggleCustomNameInput(courseId);
+    }
+
+    function toggleCustomNameInput(courseId) {
+        customCourseNameInput.style.display = (courseId === 'custom') ? 'block' : 'none';
+    }
+
+    function updateCustomCourseName(val) {
+        const name = val.trim() || "Custom Course";
+        courseDatabase['custom'].name = name;
+        localStorage.setItem('custom-course-name', name);
+    }
+
+    function addPlayer() {
+        if (players.length >= 4) return alert("Maximum of 4 players allowed.");
+        players.push({ id: 'p' + Date.now(), name: ``, tee: 'white' });
+        savePlayers(); renderSetupPlayers();
+    }
+
+    function removePlayer(id) {
+        if (players.length <= 1) return alert("You must have at least one player.");
+        if(confirm("Remove this player and all their scores?")) {
+            for(let i = 1; i <= 18; i++) localStorage.removeItem(`${id}-hole-${i}-score`);
+            players = players.filter(p => p.id !== id);
+            savePlayers(); renderSetupPlayers();
+        }
+    }
+
+    function updatePlayerName(id, newName) {
+        const cleanName = newName.trim();
+        const p = players.find(p => p.id === id);
+        if (p) { p.name = cleanName || "Player"; savePlayers(); }
+
+        if (cleanName && !cleanName.toLowerCase().startsWith("player") && !savedPlayerNames.includes(cleanName)) {
+            savedPlayerNames.push(cleanName);
+            localStorage.setItem('golf-player-history', JSON.stringify(savedPlayerNames));
+            renderPlayerDatalist();
+        }
+    }
+
+    function updatePlayerTee(id, newTee) {
+        const p = players.find(p => p.id === id);
+        if (p) { p.tee = newTee; savePlayers(); }
+    }
+
+    function renderPlayerDatalist() {
+        datalistPlayers.innerHTML = '';
+        savedPlayerNames.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            datalistPlayers.appendChild(option);
+        });
+    }
+
+    function renderSetupPlayers() {
+        setupPlayersContainer.innerHTML = '';
+        players.forEach(player => {
+            const row = document.createElement('div');
+            row.className = 'setup-player-row';
+            
+            row.innerHTML = `
+                <input type="text" list="historical-players" value="${player.name}" onchange="updatePlayerName('${player.id}', this.value)" placeholder="Name">
+                <select onchange="updatePlayerTee('${player.id}', this.value)">
+                    <option value="blue" ${player.tee === 'blue' ? 'selected' : ''}>Blue</option>
+                    <option value="white" ${player.tee === 'white' ? 'selected' : ''}>White</option>
+                    <option value="red" ${player.tee === 'red' ? 'selected' : ''}>Red</option>
+                </select>
+                <button class="btn-remove" onclick="removePlayer('${player.id}')">×</button>
+            `;
+            setupPlayersContainer.appendChild(row);
+        });
+    }
+
+    // --- SCORECARD LOGIC ---
+    function changeHole(dir) {
+        const newHole = parseInt(currentHole, 10) + parseInt(dir, 10);
+        if (newHole >= 1 && newHole <= 18) loadHole(newHole);
+    }
+    
+    function jumpToHole(e) { loadHole(parseInt(e.target.value, 10)); }
+
+    function loadHole(holeNum) {
+        currentHole = parseInt(holeNum, 10);
+        localStorage.setItem('currentHole', currentHole);
+        holeJumper.value = currentHole.toString();
+
+        const courseId = courseDropdown.value;
+        const course = courseDatabase[courseId];
+        const par = course.pars[currentHole - 1];
+
+        document.getElementById('display-course-name').textContent = course.name;
+        document.getElementById('display-hole-num').textContent = `Hole ${currentHole}`;
+        document.getElementById('display-par').textContent = par;
+
+        if (courseId === 'custom') {
+            btnParMinus.style.display = 'flex'; btnParPlus.style.display = 'flex';
+        } else {
+            btnParMinus.style.display = 'none'; btnParPlus.style.display = 'none';
+        }
+
+        document.getElementById('btn-prev').disabled = (currentHole === 1);
+        document.getElementById('btn-next').disabled = (currentHole === 18);
+
+        renderScorecardPlayers(course);
+        updateDashboard();
+    }
+
+    function adjustPar(amount) {
+        const courseId = courseDropdown.value;
+        if (courseId !== 'custom') return;
+        let currentPar = courseDatabase['custom'].pars[currentHole - 1] + amount;
+        if (currentPar < 3) currentPar = 3; if (currentPar > 6) currentPar = 6;
+        courseDatabase['custom'].pars[currentHole - 1] = currentPar;
+        localStorage.setItem('custom-course-pars', JSON.stringify(courseDatabase['custom'].pars));
+        document.getElementById('display-par').textContent = currentPar;
+        updateDashboard();
+    }
+
+    function renderScorecardPlayers(course) {
+        scorePlayersContainer.innerHTML = '';
+        const par = course.pars[currentHole - 1];
+
+        players.forEach(player => {
+            const scoreKey = `${player.id}-hole-${currentHole}-score`;
+            let savedScore = localStorage.getItem(scoreKey);
+            
+            // --- AUTO APPLY PAR ---
+            if (!savedScore) {
+                localStorage.setItem(scoreKey, par);
+                savedScore = par;
+            }
+
+            const playerTeeArray = course.tees[player.tee] || course.tees['white'];
+            const playerYards = playerTeeArray[currentHole - 1];
+            const displayYards = playerYards > 0 ? `${playerYards} yards` : '';
+
+            const displayName = player.name ? player.name : "Player";
+
+            const row = document.createElement('div');
+            row.className = 'score-row';
+            row.innerHTML = `
+                <div class="score-info">
+                    <h4 class="score-name">${displayName}</h4>
+                    <span class="player-yardage yardage-${player.tee}">${displayYards}</span>
+                </div>
+                <div class="score-controls">
+                    <button class="btn-score" onclick="adjustScore('${player.id}', -1)">-</button>
+                    <div id="score-${player.id}" class="score-display">${savedScore}</div>
+                    <button class="btn-score" onclick="adjustScore('${player.id}', 1)">+</button>
+                </div>
+            `;
+            scorePlayersContainer.appendChild(row);
+        });
+    }
+
+    function adjustScore(playerId, amount) {
+        const scoreKey = `${playerId}-hole-${currentHole}-score`;
+        let currentScore = parseInt(localStorage.getItem(scoreKey), 10);
+        
+        if (isNaN(currentScore)) {
+            const par = parseInt(document.getElementById('display-par').textContent, 10);
+            currentScore = par + parseInt(amount, 10);
+        } else {
+            currentScore += parseInt(amount, 10);
+        }
+        
+        if (currentScore < 1) currentScore = 1;
+
+        localStorage.setItem(scoreKey, currentScore);
+        const scoreDisplay = document.getElementById(`score-${playerId}`);
+        scoreDisplay.textContent = currentScore;
+        
+        try {
+            updateDashboard();
+        } catch (e) {
+            console.warn("Chart rendering skipped or delayed.", e);
+        }
+    }
+
+    function updateDashboard() {
+        const courseId = courseDropdown.value;
+        const pars = courseDatabase[courseId].pars;
+        
+        let headHTML = `<tr><th>Player</th>`;
+        let totalCoursePar = 0;
+        for(let i=1; i<=18; i++) {
+            headHTML += `<th>${i}</th>`;
+            totalCoursePar += pars[i-1];
+        }
+        headHTML += `<th>TOT</th><th>To Par</th></tr>`;
+        
+        headHTML += `<tr class="par-row"><td>Par</td>`;
+        for(let i=1; i<=18; i++) { headHTML += `<td>${pars[i-1]}</td>`; }
+        headHTML += `<td>${totalCoursePar}</td><td>-</td></tr>`;
+        
+        leaderboardFullHead.innerHTML = headHTML;
+        leaderboardSummaryBody.innerHTML = '';
+        leaderboardFullBody.innerHTML = '';
+
+        let chartDatasets = [];
+
+        players.forEach((player, pIdx) => {
+            let totalStrokes = 0, parForPlayedHoles = 0, holesPlayed = 0;
+            const displayName = player.name ? player.name : "Player";
+            let fullRowHTML = `<td>${displayName}</td>`;
+            
+            let cumulativeToPar = 0;
+            let chartData = [0];
+
+            for (let i = 1; i <= 18; i++) {
+                const score = parseInt(localStorage.getItem(`${player.id}-hole-${i}-score`), 10);
+                const holePar = pars[i - 1];
+
+                if (!isNaN(score) && score > 0) {
+                    totalStrokes += score;
+                    parForPlayedHoles += holePar;
+                    holesPlayed++;
+                    
+                    let shapeClass = '';
+                    if (score < holePar) shapeClass = 'score-under-par';
+                    else if (score > holePar) shapeClass = 'score-over-par';
+                    
+                    fullRowHTML += `<td><span class="score-shape ${shapeClass}">${score}</span></td>`;
+                    
+                    cumulativeToPar += (score - holePar);
+                    chartData.push(cumulativeToPar);
+                } else {
+                    fullRowHTML += `<td class="empty-cell">-</td>`;
+                }
+            }
+
+            const toPar = totalStrokes - parForPlayedHoles;
+            let toParDisplay = 'E', toParClass = 'to-par-even';
+            if (holesPlayed > 0) {
+                if (toPar > 0) { toParDisplay = `+${toPar}`; toParClass = 'to-par-over'; } 
+                else if (toPar < 0) { toParDisplay = toPar; toParClass = 'to-par-under'; }
+            } else { toParDisplay = '-'; }
+
+            const trSummary = document.createElement('tr');
+            trSummary.innerHTML = `
+                <td>${displayName}</td><td class="center">${holesPlayed}</td>
+                <td class="center">${totalStrokes > 0 ? totalStrokes : '-'}</td><td class="center ${toParClass}">${toParDisplay}</td>
+            `;
+            leaderboardSummaryBody.appendChild(trSummary);
+
+            const trFull = document.createElement('tr');
+            trFull.innerHTML = fullRowHTML + `
+                <td><strong>${totalStrokes > 0 ? totalStrokes : '-'}</strong></td>
+                <td class="${toParClass}">${toParDisplay}</td>
+            `;
+            leaderboardFullBody.appendChild(trFull);
+
+            chartDatasets.push({
+                label: displayName,
+                data: chartData,
+                borderColor: chartColors[pIdx % chartColors.length],
+                backgroundColor: chartColors[pIdx % chartColors.length],
+                tension: 0.3,
+                borderWidth: 3,
+                pointRadius: 4
+            });
+        });
+
+        // Safely Render Active Chart
+        if (typeof Chart !== 'undefined') {
+            if (activeChartInstance) activeChartInstance.destroy();
+            const canvas = document.getElementById('activeRoundChart');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                activeChartInstance = new Chart(ctx, getChartConfig(chartDatasets));
+            }
+        }
+    }
+
+    // --- SHARED CHART CONFIG ---
+    function getChartConfig(datasets) {
+        return {
+            type: 'line',
+            data: {
+                labels: ['Start', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18'],
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: {
+                        title: { display: true, text: 'To Par' },
+                        ticks: {
+                            stepSize: 1,
+                            callback: function(value) {
+                                if (value > 0) return '+' + value;
+                                if (value === 0) return 'E';
+                                return value;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    // --- ROUND MANAGEMENT & SHARED UI BUILDER ---
+    function resetRound() {
+        if(confirm("Are you sure you want to completely clear the round and remove all active players?")) {
+            players.forEach(player => {
+                for(let i = 1; i <= 18; i++) localStorage.removeItem(`${player.id}-hole-${i}-score`);
+            });
+            players = [{ id: 'p' + Date.now(), name: '', tee: 'white' }];
+            savePlayers();
+            currentHole = 1; localStorage.setItem('currentHole', 1);
+            localStorage.removeItem('activeRoundId'); 
+            showSetup();
+        }
+    }
+
+    function saveRound() {
+        let activeId = localStorage.getItem('activeRoundId');
+        if (!activeId) {
+            activeId = Date.now().toString();
+            localStorage.setItem('activeRoundId', activeId);
+        }
+
+        const courseId = courseDropdown.value;
+        const courseName = courseId === 'custom' ? courseDatabase['custom'].name : courseDatabase[courseId].name;
+        const pars = courseId === 'custom' ? courseDatabase['custom'].pars : null;
+
+        const roundData = {
+            id: activeId,
+            date: new Date().toLocaleDateString(),
+            courseId: courseId,
+            courseName: courseName,
+            pars: pars,
+            players: players.map(p => {
+                let total = 0; const scores = [];
+                for (let i = 1; i <= 18; i++) {
+                    const s = parseInt(localStorage.getItem(`${p.id}-hole-${i}-score`), 10);
+                    scores.push(isNaN(s) ? null : s);
+                    if (!isNaN(s)) total += s;
+                }
+                return { ...p, scores, total };
+            })
+        };
+
+        let history = JSON.parse(localStorage.getItem('saved-golf-rounds') || '[]');
+        const existingIndex = history.findIndex(r => r.id === activeId);
+        if (existingIndex >= 0) history[existingIndex] = roundData;
+        else history.push(roundData);
+        
+        localStorage.setItem('saved-golf-rounds', JSON.stringify(history));
+        alert("Round saved successfully to History!");
+    }
+
+    function buildRoundCardElement(round, prefix) {
+        let roundPars = round.pars || (courseDatabase[round.courseId] ? courseDatabase[round.courseId].pars : Array(18).fill(4));
+        
+        let fullHeadHTML = `<tr><th>Player</th>`;
+        let totalCoursePar = 0;
+        for(let i=1; i<=18; i++) {
+            fullHeadHTML += `<th>${i}</th>`;
+            totalCoursePar += roundPars[i-1];
+        }
+        fullHeadHTML += `<th>TOT</th><th>To Par</th></tr>`;
+        
+        fullHeadHTML += `<tr class="par-row"><td>Par</td>`;
+        for(let i=1; i<=18; i++) { fullHeadHTML += `<td>${roundPars[i-1]}</td>`; }
+        fullHeadHTML += `<td>${totalCoursePar}</td><td>-</td></tr>`;
+
+        let summaryRowsHTML = '';
+        let fullRowsHTML = '';
+        let chartDatasets = [];
+
+        round.players.forEach((p, pIdx) => {
+            const displayName = p.name ? p.name : "Player";
+            let holesPlayed = 0, totalStrokes = 0, parForPlayedHoles = 0;
+            let fullPlayerCells = `<td>${displayName}</td>`;
+            
+            let cumulativeToPar = 0;
+            let chartData = [0];
+
+            p.scores.forEach((score, index) => {
+                let holePar = roundPars[index];
+                if (score !== null && score > 0) {
+                    holesPlayed++;
+                    totalStrokes += score;
+                    parForPlayedHoles += holePar;
+
+                    let shapeClass = '';
+                    if (score < holePar) shapeClass = 'score-under-par';
+                    else if (score > holePar) shapeClass = 'score-over-par';
+
+                    fullPlayerCells += `<td><span class="score-shape ${shapeClass}">${score}</span></td>`;
+                    
+                    cumulativeToPar += (score - holePar);
+                    chartData.push(cumulativeToPar);
+                } else {
+                    fullPlayerCells += `<td class="empty-cell">-</td>`;
+                }
+            });
+
+            const toPar = totalStrokes - parForPlayedHoles;
+            let toParDisplay = 'E', toParClass = 'to-par-even';
+            if (holesPlayed > 0) {
+                if (toPar > 0) { toParDisplay = `+${toPar}`; toParClass = 'to-par-over'; }
+                else if (toPar < 0) { toParDisplay = toPar; toParClass = 'to-par-under'; }
+            } else { toParDisplay = '-'; }
+
+            summaryRowsHTML += `
+                <tr>
+                    <td>${displayName}</td>
+                    <td class="center">${holesPlayed}</td>
+                    <td class="center">${totalStrokes > 0 ? totalStrokes : '-'}</td>
+                    <td class="center ${toParClass}">${toParDisplay}</td>
+                </tr>
+            `;
+
+            fullRowsHTML += `
+                <tr>
+                    ${fullPlayerCells}
+                    <td><strong>${totalStrokes > 0 ? totalStrokes : '-'}</strong></td>
+                    <td class="${toParClass}">${toParDisplay}</td>
+                </tr>
+            `;
+
+            chartDatasets.push({
+                label: displayName,
+                data: chartData,
+                borderColor: chartColors[pIdx % chartColors.length],
+                backgroundColor: chartColors[pIdx % chartColors.length],
+                tension: 0.3,
+                borderWidth: 3,
+                pointRadius: 4
+            });
+        });
+
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        card.innerHTML = `
+            <div class="history-header">
+                <strong>${round.courseName}</strong>
+                <span>${round.date}</span>
+            </div>
+            
+            <div class="view-toggle" style="margin-bottom: 10px;">
+                <button id="btn-${prefix}-sum-${round.id}" class="active" onclick="toggleRoundView('${round.id}', 'summary', '${prefix}')">Summary</button>
+                <button id="btn-${prefix}-full-${round.id}" onclick="toggleRoundView('${round.id}', 'full', '${prefix}')">Full Grid</button>
+                <button id="btn-${prefix}-chart-${round.id}" onclick="toggleRoundView('${round.id}', 'chart', '${prefix}')">📈 Mountain</button>
+            </div>
+
+            <div id="${prefix}-sum-container-${round.id}">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th class="center">Thru</th>
+                            <th class="center">Total</th>
+                            <th class="center">To Par</th>
+                        </tr>
+                    </thead>
+                    <tbody>${summaryRowsHTML}</tbody>
+                </table>
+            </div>
+
+            <div id="${prefix}-full-container-${round.id}" class="table-responsive" style="display: none;">
+                <table class="full-scorecard">
+                    <thead>${fullHeadHTML}</thead>
+                    <tbody>${fullRowsHTML}</tbody>
+                </table>
+            </div>
+
+            <div id="${prefix}-chart-container-${round.id}" class="chart-container" style="display: none;">
+                <canvas id="canvas-${prefix}-${round.id}"></canvas>
+            </div>
+
+            <div class="history-actions">
+                <button class="btn-action outline" onclick="editHistoryRound('${round.id}')">Resume / Edit</button>
+                <button class="btn-action danger" onclick="deleteHistoryRound('${round.id}')">Delete</button>
+            </div>
+        `;
+
+        // Safe rendering delay
+        setTimeout(() => {
+            if (typeof Chart !== 'undefined') {
+                const ctx = document.getElementById(`canvas-${prefix}-${round.id}`);
+                if (ctx) {
+                    historyChartInstances.push(new Chart(ctx, getChartConfig(chartDatasets)));
+                }
+            }
+        }, 0);
+
+        return card;
+    }
+
+    function renderHistory() {
+        clearHistoryCharts();
+        historyContainer.innerHTML = '';
+        let history = JSON.parse(localStorage.getItem('saved-golf-rounds') || '[]');
+        
+        if (history.length === 0) {
+            historyContainer.innerHTML = '<div class="empty-state">No saved rounds yet. Go play some golf!</div>';
+            return;
+        }
+
+        history.sort((a, b) => b.id - a.id);
+        history.forEach(round => {
+            historyContainer.appendChild(buildRoundCardElement(round, 'hist'));
+        });
+    }
+
+    function renderPlayerDetailHistory(playerName) {
+        clearHistoryCharts();
+        playerDetailContainer.innerHTML = '';
+        let history = JSON.parse(localStorage.getItem('saved-golf-rounds') || '[]');
+        
+        let playerRounds = history.filter(round => 
+            round.players.some(p => (p.name ? p.name.trim() : "Player") === playerName)
+        );
+
+        if (playerRounds.length === 0) {
+            playerDetailContainer.innerHTML = '<div class="empty-state">No rounds found for this player.</div>';
+            return;
+        }
+
+        let totalRounds = 0, totalHoles = 0, totalStrokes = 0, totalPar = 0;
+
+        playerRounds.forEach(round => {
+            let roundPars = round.pars || (courseDatabase[round.courseId] ? courseDatabase[round.courseId].pars : Array(18).fill(4));
+            let p = round.players.find(p => (p.name ? p.name.trim() : "Player") === playerName);
+            
+            if (p) {
+                let holesInRound = 0, strokesInRound = 0, parInRound = 0;
+                p.scores.forEach((score, index) => {
+                    if (score !== null && score > 0) {
+                        holesInRound++;
+                        strokesInRound += score;
+                        parInRound += roundPars[index];
+                    }
+                });
+                
+                if (holesInRound > 0) {
+                    totalRounds++;
+                    totalHoles += holesInRound;
+                    totalStrokes += strokesInRound;
+                    totalPar += parInRound;
+                }
+            }
+        });
+
+        document.getElementById('detail-sum-rounds').textContent = totalRounds;
+        document.getElementById('detail-sum-avg').textContent = totalHoles > 0 ? ((totalStrokes / totalHoles) * 18).toFixed(1) : "0.0";
+        
+        const lifetimeToPar = totalStrokes - totalPar;
+        let toParDisplay = 'E', toParClass = 'to-par-even';
+        if (lifetimeToPar > 0) { toParDisplay = `+${lifetimeToPar}`; toParClass = 'to-par-over'; }
+        else if (lifetimeToPar < 0) { toParDisplay = lifetimeToPar; toParClass = 'to-par-under'; }
+        
+        const parElem = document.getElementById('detail-sum-topar');
+        parElem.textContent = toParDisplay;
+        parElem.className = toParClass;
+
+        playerRounds.sort((a, b) => b.id - a.id);
+        playerRounds.forEach(round => {
+            playerDetailContainer.appendChild(buildRoundCardElement(round, 'detail'));
+        });
+    }
+
+    function deleteHistoryRound(id) {
+        if(confirm("Are you sure you want to delete this saved round permanently?")) {
+            let history = JSON.parse(localStorage.getItem('saved-golf-rounds') || '[]');
+            history = history.filter(r => r.id !== id);
+            localStorage.setItem('saved-golf-rounds', JSON.stringify(history));
+            
+            if(localStorage.getItem('activeRoundId') === id) {
+                localStorage.removeItem('activeRoundId');
+            }
+            
+            if (screenPlayerDetail.classList.contains('active')) {
+                renderPlayerDetailHistory(currentDetailPlayer);
+            } else {
+                renderHistory();
+            }
+        }
+    }
+
+    function editHistoryRound(id) {
+        let history = JSON.parse(localStorage.getItem('saved-golf-rounds') || '[]');
+        const round = history.find(r => r.id === id);
+        if (!round) return;
+
+        const currentActive = localStorage.getItem('activeRoundId');
+        if (currentActive && currentActive !== id) {
+            if(!confirm("Loading this past round will replace your current active scorecard. Continue?")) return;
+        }
+
+        localStorage.setItem('activeRoundId', round.id);
+        localStorage.setItem('selectedCourseId', round.courseId);
+        if (round.courseId === 'custom') {
+            localStorage.setItem('custom-course-name', round.courseName);
+            if (round.pars) localStorage.setItem('custom-course-pars', JSON.stringify(round.pars));
+        }
+
+        players.forEach(p => {
+            for(let i=1; i<=18; i++) localStorage.removeItem(`${p.id}-hole-${i}-score`);
+        });
+
+        const activePlayers = round.players.map(p => ({id: p.id, name: p.name, tee: p.tee}));
+        localStorage.setItem('golf-players', JSON.stringify(activePlayers));
+
+        round.players.forEach(p => {
+            p.scores.forEach((score, index) => {
+                if (score !== null) localStorage.setItem(`${p.id}-hole-${index + 1}-score`, score);
+            });
+        });
+
+        localStorage.setItem('currentHole', 1);
+        init();
+    }
+
+    // --- PLAYER STATS LOGIC ---
+    function renderPlayerStats() {
+        statsBody.innerHTML = '';
+        let history = JSON.parse(localStorage.getItem('saved-golf-rounds') || '[]');
+        const playerStats = {};
+
+        history.forEach(round => {
+            let roundPars = round.pars || (courseDatabase[round.courseId] ? courseDatabase[round.courseId].pars : Array(18).fill(4));
+
+            round.players.forEach(p => {
+                const name = p.name ? p.name.trim() : "Player";
+                if (!playerStats[name]) {
+                    playerStats[name] = { rounds: 0, holesPlayed: 0, strokes: 0, totalPar: 0 };
+                }
+
+                let holesInRound = 0, strokesInRound = 0, parInRound = 0;
+
+                p.scores.forEach((score, index) => {
+                    if (score !== null && score > 0) {
+                        holesInRound++;
+                        strokesInRound += score;
+                        parInRound += roundPars[index];
+                    }
+                });
+
+                if (holesInRound > 0) {
+                    playerStats[name].rounds++;
+                    playerStats[name].holesPlayed += holesInRound;
+                    playerStats[name].strokes += strokesInRound;
+                    playerStats[name].totalPar += parInRound;
+                }
+            });
+        });
+
+        const sortedStats = Object.keys(playerStats).map(name => {
+            return { name: name, ...playerStats[name] };
+        }).sort((a, b) => b.rounds - a.rounds);
+
+        if (sortedStats.length === 0) {
+            statsBody.innerHTML = '<tr><td colspan="5" class="empty-state">No player data available. Play some rounds!</td></tr>';
+            return;
+        }
+
+        sortedStats.forEach(stat => {
+            const lifetimeToPar = stat.strokes - stat.totalPar;
+            let toParDisplay = 'E', toParClass = 'to-par-even';
+            
+            if (lifetimeToPar > 0) {
+                toParDisplay = `+${lifetimeToPar}`;
+                toParClass = 'to-par-over';
+            } else if (lifetimeToPar < 0) {
+                toParDisplay = lifetimeToPar;
+                toParClass = 'to-par-under';
+            }
+
+            const avg18 = stat.holesPlayed > 0 ? ((stat.strokes / stat.holesPlayed) * 18).toFixed(1) : "0.0";
+
+            const tr = document.createElement('tr');
+            tr.className = 'clickable-row';
+            tr.onclick = () => showPlayerDetail(stat.name);
+            tr.innerHTML = `
+                <td>${stat.name}</td>
+                <td class="center">${stat.rounds}</td>
+                <td class="center">${avg18}</td>
+                <td class="center ${toParClass}">${toParDisplay}</td>
+                <td class="chevron-cell">›</td>
+            `;
+            statsBody.appendChild(tr);
+        });
+    }
+
+    // Start App
+    init();
+</script>
+
+</body>
+</html>
